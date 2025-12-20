@@ -1,34 +1,72 @@
 # Regional Network Design
 
 ```mermaid
-graph LR
-    subgraph "Production Environment Detail"
-        PROD[Production VPC<br>10.0.100.0/16] --> WEB[Web Tier<br>10.0.100.1.0/24,<br>10.0.100.2.0/24]
-        PROD --> APP[App Tier<br>10.0.100.3.0/24,<br>10.0.100.4.0/24]
-        PROD --> DB[DB Tier<br>10.0.100.5.0/24,<br>10.0.100.6.0/24]
-        PROD --> MGT[Management<br>10.0.100.7.0/24,<br>10.0.100.8.0/24]
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#00198a', 'primaryTextColor': '#ffffff', 'primaryBorderColor': '#00198a', 'lineColor': '#00198a', 'secondaryColor': '#dae5fa', 'tertiaryColor': '#ffffff'}}}%%
+flowchart TB
+    INET[Internet]
+    IGW[Internet Gateway]
+    NAT[NAT Gateway]
+    TGW[Transit Gateway]
+    OTHER[Other VPCs / Regions]
+
+    subgraph VPC["Production VPC (10.0.8.0/16)"]
+        subgraph PUB["Public Subnets"]
+            WEB[Web Tier<br>10.0.8-9.0/24]
+        end
+        subgraph PRIV["Private Subnets"]
+            APP[App Tier<br>10.0.10-11.0/24]
+            DB[DB Tier<br>10.0.12-13.0/24]
+        end
     end
 
-    subgraph "Network Components"
-        WEB --> IGW[Internet Gateway]
-        WEB --> NAT[NAT Gateway]
-        APP --> VPE1[VPC Endpoints]
-        DB --> VPE2[VPC Endpoints]
-        PROD --> TGW[Transit Gateway<br>Regional Resource]
-    end
+    INET <--> IGW
+    IGW <--> WEB
+    WEB --> NAT
+    NAT --> INET
+    APP --> NAT
+    DB --> NAT
+    APP <--> TGW
+    DB <--> TGW
+    TGW <--> OTHER
 
-    subgraph "Component Notes"
-        NAT -->|"Placed in Public Subnet"| WEB
-        VPE1 -->|"Specific to App Tier"| APP
-        VPE2 -->|"Specific to DB Tier"| DB
-        TGW -->|"Regional Service"| PROD
-    end
+    style INET fill:#ffffff,stroke:#00198a,color:#00198a
+    style VPC fill:#ffffff,stroke:#00198a,color:#00198a
+    style PUB fill:#dae5fa,stroke:#00198a,color:#00198a
+    style PRIV fill:#dae5fa,stroke:#00198a,color:#00198a
+    style WEB fill:#00198a,stroke:#00198a,color:#ffffff
+    style APP fill:#00198a,stroke:#00198a,color:#ffffff
+    style DB fill:#00198a,stroke:#00198a,color:#ffffff
+    style IGW fill:#00198a,stroke:#00198a,color:#ffffff
+    style NAT fill:#00198a,stroke:#00198a,color:#ffffff
+    style TGW fill:#00198a,stroke:#00198a,color:#ffffff
+    style OTHER fill:#dae5fa,stroke:#00198a,color:#00198a
 ```
 
-## Design Pattern
-1. NAT Gateway in public subnet (Web Tier)
-2. VPC Endpoints per private tier as needed
-3. Transit Gateway as regional service
-4. Clear separation of network components
+## Traffic Flow
+
+| Traffic Type                | Path                      |
+| --------------------------- | ------------------------- |
+| Inbound internet            | Internet → IGW → Web Tier |
+| Outbound internet (public)  | Web Tier → IGW → Internet |
+| Outbound internet (private) | App/DB → NAT → Internet   |
+| Cross-VPC / Cross-region    | App/DB → TGW → Other VPCs |
+
+## Route Tables
+
+**Public Subnet (Web Tier):**
+
+```
+0.0.0.0/0       → igw-xxx     (internet via IGW)
+10.0.8.0/16     → local
+10.0.0.0/12     → tgw-xxx     (other VPCs via TGW)
+```
+
+**Private Subnets (App/DB Tier):**
+
+```
+0.0.0.0/0       → nat-xxx     (internet via NAT)
+10.0.8.0/16     → local
+10.0.0.0/12     → tgw-xxx     (other VPCs via TGW)
+```
 
 Author: Ditah Kumbong
