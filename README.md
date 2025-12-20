@@ -43,7 +43,7 @@ where {r} = region offset:
 ### Tier Segmentation (per VPC)
 
 ```
-Example: Singapore Production VPC (10.0.8.0/16)
+Example: Canada Production VPC (10.0.8.0/16)
 
 Web Tier:     10.0.8.0/24 (AZ1), 10.0.9.0/24 (AZ2)
 App Tier:     10.0.10.0/24 (AZ1), 10.0.11.0/24 (AZ2)
